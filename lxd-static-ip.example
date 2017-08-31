@@ -1,0 +1,9 @@
+# after changes run
+# service lxd-bridge restart
+
+dhcp-host=c1,10.14.23.21
+dhcp-host=c2,10.14.23.22
+dhcp-host=c3,10.14.23.23
+dhcp-host=c4,10.14.23.24
+
+

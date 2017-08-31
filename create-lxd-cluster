@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# tested on ubuntu 16.04
+# this script will create 4 lxd instances called c1 c2 c3 c4
+# and setup ssh with key auth so you can run
+# ssh root@c1 # or c2 c3 c4
+
+if [ $(id -u) = '0' ]
+then
+    echo don\'t run this script as root
+    exit 1
+fi	
+
+sudo apt install -y lxd
+sudo adduser $USER lxd
+
+sudo lxd init --auto --network-address 0.0.0.0 --network-port 8443
+
+sudo cp lxd-bridge.example /etc/default/lxd-bridge
+sudo cp lxd-static-ip.example /etc/default/lxd-static-ip.conf
+
+sudo cat hosts >>/etc/hosts
+
+sudo service lxd-bridge restart
+
+for c in c1 c2 c3 c4
+do
+    sudo lxc launch ubuntu:xenial $c
+    sudo lxc config set $c limits.memory.enforce hard
+    sudo lxc config set $c limits.memory 2GB
+    sudo lxc config set $c limits.cpu.allowance 20%
+
+    sudo mkdir -p /var/lib/lxd/containers/$c/rootfs/root/.ssh
+    sudo chmod 700 /var/lib/lxd/containers/$c/rootfs/root/.ssh
+    sudo cat ~/.ssh/id_rsa.pub >> /var/lib/lxd/containers/$c/rootfs/root/.ssh/authorized_keys
+    sudo chmod 600 /var/lib/lxd/containers/$c/rootfs/root/.ssh/authorized_keys
+done
+
+lxc list
+
