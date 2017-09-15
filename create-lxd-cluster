@@ -63,5 +63,5 @@ do
     sudo lxc exec $c -- chown -R root.root /root/.ssh
 done
 
-lxc list
+sudo lxc list
 
