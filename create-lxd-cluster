@@ -11,7 +11,26 @@ then
     exit 1
 fi	
 
+# ssh key 
+if [ ! -f ~/.ssh/id_rsa.pub ]
+then
+    echo "you don't have a ssh key"
+    echo "use ssh-keygen to create one"
+    exit 2
+fi
+
+### purge
+echo stopping and purging lxd
+echo this will DELETE ALL EXISTING lxd!!!
+read -p "ENTER to continue or CTRL+C to abort " tmp
+sudo service lxd stop
+sudo apt purge -y lxd
+sudo umount /var/lib/lxd/shmounts 
+sudo umount /var/lib/lxd/devlxd
+sudo rm -rf /var/lib/lxd /var/log/lxd /etc/default/lxd*
+
 sudo apt install -y lxd
+service lxd start
 sudo adduser $USER lxd
 
 sudo lxd init --auto --network-address 0.0.0.0 --network-port 8443
@@ -19,9 +38,15 @@ sudo lxd init --auto --network-address 0.0.0.0 --network-port 8443
 sudo cp lxd-bridge.example /etc/default/lxd-bridge
 sudo cp lxd-static-ip.example /etc/default/lxd-static-ip.conf
 
-sudo cat hosts >>/etc/hosts
+sudo sh -c "cat hosts >>/etc/hosts"
 
 sudo service lxd-bridge restart
+
+# create ssh key if not exits
+if [ ! -f ~/.ssh/id_rsa.pub ]
+then
+    ssh-keygen
+fi
 
 for c in c1 c2 c3 c4
 do
@@ -30,10 +55,12 @@ do
     sudo lxc config set $c limits.memory 2GB
     sudo lxc config set $c limits.cpu.allowance 20%
 
-    sudo mkdir -p /var/lib/lxd/containers/$c/rootfs/root/.ssh
-    sudo chmod 700 /var/lib/lxd/containers/$c/rootfs/root/.ssh
-    sudo cat ~/.ssh/id_rsa.pub >> /var/lib/lxd/containers/$c/rootfs/root/.ssh/authorized_keys
-    sudo chmod 600 /var/lib/lxd/containers/$c/rootfs/root/.ssh/authorized_keys
+    sudo lxc exec $c -- mkdir -p  /root/.ssh
+    sudo lxc exec $c -- chmod 700 /root/.ssh
+    
+    sudo lxc file push ~/.ssh/id_rsa.pub $c/root/.ssh/authorized_keys
+    sudo lxc exec $c -- chmod 600 /root/.ssh/authorized_keys
+    sudo lxc exec $c -- chown -R root.root /root/.ssh
 done
 
 lxc list
